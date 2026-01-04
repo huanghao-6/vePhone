@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>测试结果汇总</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:24px;color:#1f2937}
+h1{font-size:22px;margin:0 0 12px}
+.bar{display:flex;gap:12px;align-items:center;margin-bottom:16px}
+input[type=file]{padding:6px 10px;border:1px solid #cbd5e1;border-radius:0;font-size:14px}
+button{height:32px;padding:6px 12px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:0;cursor:pointer;font-size:14px}
+button:hover{background:#eef2f7}
+.bar select{height:32px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:0;font-size:14px;background:#ffffff}
+.stats{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0}
+.stat{background:#f8fafc;border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:8px 0 16px}
+.card{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#ffffff}
+.card h2{margin:0 0 8px;font-size:16px}
+canvas{width:100%;height:240px}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+thead tr{background:#f1f5f9}
+th,td{border:1px solid #e5e7eb;padding:8px;text-align:left;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+th.sortable{cursor:pointer}
+.status-pass{color:#16a34a}
+.status-fail{color:#dc2626}
+.status-skip{color:#6b7280}
+.grid{overflow:auto;max-height:60vh}
+.empty{padding:12px;border:1px dashed #cbd5e1;border-radius:12px}
+.pager{display:flex;gap:8px;align-items:center;margin-top:8px}
+.muted{color:#6b7280}
+
+.cell-content{max-width:520px;cursor:pointer}
+.cell-aosp{max-width:90px}
+.cell-image-id{max-width:180px}
+.cell-image-name{max-width:380px}
+
+.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999}
+.modal.hidden{display:none}
+.modal-card{width:min(980px,92vw);max-height:88vh;display:flex;flex-direction:column;background:#ffffff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #e5e7eb}
+.modal-title{font-size:14px;color:#111827;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.modal-actions{display:flex;gap:8px;align-items:center}
+.modal-body{padding:12px 14px;overflow:auto}
+
+.modal-tabs{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.modal-tab{height:30px;padding:6px 10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:999px;cursor:pointer;font-size:13px}
+.modal-tab.active{background:#111827;color:#ffffff;border-color:#111827}
+
+.modal-panel.hidden{display:none}
+
+.modal-text{width:100%;min-height:42vh;max-height:68vh;resize:vertical;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.45;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;white-space:pre-wrap}
+.modal-hint{margin-top:8px;color:#6b7280;font-size:12px}
+
+.json-tree{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:13px;line-height:1.45;border:1px solid #e5e7eb;border-radius:10px;padding:10px 12px;max-height:68vh;overflow:auto;background:#ffffff}
+.json-node{margin-left:14px}
+.json-leaf{margin-left:14px;white-space:pre-wrap}
+.json-key{color:#0f766e}
+.json-type{color:#6b7280}
+.json-value{color:#111827}
+.json-null{color:#6b7280}
+.json-number{color:#1d4ed8}
+.json-bool{color:#b45309}
+.json-string{color:#16a34a}
+.json-summary{cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Mobile Use For UI Test</h1>
+<div class="bar">
+  <input id="dir" type="file" webkitdirectory>
+  <select id="fileSelect" multiple></select>
+  <button id="loadSelected">加载所选</button>
+  <input id="file" type="file" accept="application/json,.json" multiple>
+  <button id="loadSample">加载示例</button>
+  <span id="meta" class="muted"></span>
+</div>
+<div id="summary" class="stats"></div>
+<div class="charts">
+  <div class="card"><h2>状态分布</h2><canvas id="chartStatus"></canvas></div>
+  <div class="card"><h2>失败原因分布</h2><canvas id="chartFailPie"></canvas></div>
+  <div class="card"><h2>耗时直方图</h2><canvas id="chartHistogram"></canvas></div>
+</div>
+<div class="grid">
+<table id="table">
+<thead>
+<tr>
+  <th class="sortable" data-key="case">case</th>
+  <th class="sortable" data-key="status">status</th>
+  <th class="sortable" data-key="timestamp">timestamp</th>
+  <th class="sortable" data-key="duration_ms">duration_ms</th>
+  <th>reason</th>
+  <th>录屏/视频</th>
+  <th class="sortable" data-key="screenshot">screenshot</th>
+  <th class="sortable" data-key="in_tokens">in_tokens</th>
+  <th class="sortable" data-key="out_tokens">out_tokens</th>
+  <th class="sortable" data-key="AospVersion">AospVersion</th>
+  <th class="sortable" data-key="ImageId">ImageId</th>
+  <th class="sortable" data-key="ImageName">ImageName</th>
+  <th class="sortable" data-key="content">content</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+<div id="contentModal" class="modal hidden" role="dialog" aria-modal="true" aria-label="content">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div id="contentModalTitle" class="modal-title">content</div>
+      <div class="modal-actions">
+        <button id="contentModalCopy" type="button">复制</button>
+        <button id="contentModalClose" type="button">关闭</button>
+      </div>
+</div>
+    <div class="modal-body">
+      <div class="modal-tabs">
+        <button id="contentModalTabContent" class="modal-tab active" type="button">content</button>
+        <button id="contentModalTabStruct" class="modal-tab" type="button">struct_output</button>
+      </div>
+
+      <div id="contentModalPanelContent" class="modal-panel">
+        <textarea id="contentModalText" class="modal-text" readonly></textarea>
+      </div>
+
+      <div id="contentModalPanelStruct" class="modal-panel hidden">
+        <div id="contentModalJson" class="json-tree"></div>
+      </div>
+
+      <div id="contentModalHint" class="modal-hint"></div>
+    </div>
+  </div>
+</div>
+
+<div class="pager">
+  <button id="prev">上一页</button>
+  <button id="next">下一页</button>
+  <span id="pageInfo" class="muted"></span>
+</div>
+<div id="empty" class="empty">选择 results 目录中的 JSON 文件或点击“加载示例”。</div>
+
+<script>
+"use strict";
+
+const input=document.getElementById('file');
+const dir=document.getElementById('dir');
+const fileSelect=document.getElementById('fileSelect');
+const loadSelected=document.getElementById('loadSelected');
+const tbody=document.querySelector('#table tbody');
+const summary=document.getElementById('summary');
+const empty=document.getElementById('empty');
+const btn=document.getElementById('loadSample');
+const meta=document.getElementById('meta');
+const prev=document.getElementById('prev');
+const next=document.getElementById('next');
+const pageInfo=document.getElementById('pageInfo');
+const chartStatus=document.getElementById('chartStatus');
+const chartHistogram=document.getElementById('chartHistogram');
+const chartFailPie=document.getElementById('chartFailPie');
+
+let currentData=[];
+let sortKey='timestamp';
+let sortAsc=false;
+let page=1;
+let pageSize=100;
+let dirFiles=[];
+
+function normalize(input){
+  if(Array.isArray(input))return input;
+  if(input && Array.isArray(input.results))return input.results;
+  return [];
+}
+
+function formatTs(ts){
+  try{
+    const d=new Date(ts);
+    if(!isNaN(d))return d.toISOString();
+  }catch(_){
+    return String(ts||'');
+  }
+  return String(ts||'');
+}
+
+function stats(data){
+  let pass=0,fail=0,skip=0;
+  for(const i of data){
+    const s=i.status;
+    if(s==='pass')pass++;
+    else if(s==='fail')fail++;
+    else skip++;
+}
+  return {total:data.length,pass,fail,skip};
+}
+
+function renderSummary(s){
+  summary.innerHTML='';
+  const nodes=[
+    {k:'总数',v:s.total},
+    {k:'通过',v:s.pass},
+    {k:'失败',v:s.fail},
+    {k:'跳过',v:s.skip},
+  ];
+  for(const n of nodes){
+    const div=document.createElement('div');
+    div.className='stat';
+    div.textContent=n.k+': '+n.v;
+    summary.appendChild(div);
+  }
+}
+
+function setPixelRatio(canvas){
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.getBoundingClientRect();
+  canvas.width=Math.round(rect.width*dpr);
+  canvas.height=Math.round(rect.height*dpr);
+  return dpr;
+}
+
+function drawStatusChart(data){
+  const c=chartStatus;
+  const dpr=setPixelRatio(c);
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const s=stats(data);
+  const labels=['pass','fail','skip'];
+  const values=[s.pass,s.fail,s.skip];
+  const colors=['#16a34a','#dc2626','#6b7280'];
+
+  const pad=20*dpr;
+  const max=Math.max(1,...values);
+  const w=(c.width-pad*2)/labels.length;
+  const h=c.height-pad*2;
+
+  ctx.font=12*dpr+'px system-ui';
+  ctx.textAlign='center';
+  ctx.textBaseline='top';
+
+  for(let i=0;i<labels.length;i++){
+    const x=pad+i*w+w*0.15;
+    const barW=w*0.7;
+    const barH=Math.round(h*(values[i]/max));
+    const y=c.height-pad-barH;
+    ctx.fillStyle=colors[i];
+    ctx.fillRect(x,y,barW,barH);
+    ctx.fillStyle='#111827';
+    ctx.fillText(labels[i],x+barW/2,c.height-pad+4*dpr);
+    ctx.fillText(String(values[i]),x+barW/2,y-14*dpr);
+  }
+}
+
+function drawHistogram(data){
+  const c=chartHistogram;
+  const dpr=setPixelRatio(c);
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const durs=data.map(i=>Number(i.duration_ms||0)).filter(Number.isFinite);
+  if(!durs.length)return;
+  durs.sort((a,b)=>a-b);
+
+  const bins=20;
+  const min=durs[0],max=durs[durs.length-1];
+  const range=Math.max(1,max-min);
+  const bw=range/bins;
+  const counts=new Array(bins).fill(0);
+  for(const v of durs){
+    const idx=Math.min(bins-1,Math.floor((v-min)/bw));
+    counts[idx]++;
+  }
+
+  const pad=24*dpr;
+  const chartW=c.width-pad*2;
+  const chartH=c.height-pad*2;
+  const barW=chartW/bins;
+  const peak=Math.max(...counts,1);
+
+  ctx.fillStyle='#0ea5e9';
+  for(let i=0;i<bins;i++){
+    const bh=Math.round(chartH*(counts[i]/peak));
+    const x=pad+i*barW;
+    const y=c.height-pad-bh;
+    ctx.fillRect(x,y,barW*0.9,bh);
+  }
+
+  ctx.fillStyle='#111827';
+  ctx.font=12*dpr+'px system-ui';
+  ctx.textAlign='center';
+  ctx.textBaseline='top';
+  ctx.fillText(min+'ms',pad,c.height-pad+4*dpr);
+  ctx.fillText(max+'ms',c.width-pad,c.height-pad+4*dpr);
+}
+
+function drawFailPie(data){
+  const c=chartFailPie;
+  const dpr=setPixelRatio(c);
+  const ctx=c.getContext('2d');
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const fails=data.filter(i=>String(i.status).toLowerCase()==='fail');
+  const map=new Map();
+  for(const f of fails){
+    const key=(String(f.reason||'').trim()||'未提供');
+    map.set(key,(map.get(key)||0)+1);
+  }
+  const labels=[...map.keys()];
+  const values=[...map.values()];
+  if(!values.length){
+    ctx.fillStyle='#6b7280';
+    ctx.font=14*dpr+'px system-ui';
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText('无失败数据',c.width/2,c.height/2);
+    return;
+  }
+
+  const total=values.reduce((a,b)=>a+b,0);
+  const cx=c.width/2;
+  const cy=c.height/2;
+  const r=Math.min(c.width,c.height)/2-20*dpr;
+  let start=0;
+  const palette=['#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#84cc16','#06b6d4','#f97316'];
+
+  ctx.lineWidth=1*dpr;
+  for(let i=0;i<values.length;i++){
+    const val=values[i];
+    const frac=val/total;
+    const end=start+frac*2*Math.PI;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,end);
+    ctx.closePath();
+    ctx.fillStyle=palette[i%palette.length];
+    ctx.fill();
+    ctx.strokeStyle='#ffffff';
+    ctx.stroke();
+
+    const mid=(start+end)/2;
+    const lx=cx+Math.cos(mid)*(r+10*dpr);
+    const ly=cy+Math.sin(mid)*(r+10*dpr);
+    ctx.fillStyle='#111827';
+    ctx.font=12*dpr+'px system-ui';
+    ctx.textAlign=lx>cx?'left':'right';
+    ctx.textBaseline='middle';
+    ctx.fillText(labels[i]+': '+val,lx,ly);
+
+    start=end;
+  }
+}
+
+function sortData(){
+  const k=sortKey;
+  const asc=sortAsc;
+  const cmp=(a,b)=>{
+    let va=a[k],vb=b[k];
+    if(k==='timestamp'){
+      va=new Date(va).getTime();
+      vb=new Date(vb).getTime();
+    }
+    if(k==='duration_ms'||k==='in_tokens'||k==='out_tokens'){
+      va=Number(va||0);
+      vb=Number(vb||0);
+    }
+    if(k==='AospVersion'){
+      const na=Number(va);const nb=Number(vb);
+      if(isFinite(na)&&isFinite(nb)){va=na;vb=nb;}
+    }
+    va=va??'';vb=vb??'';
+    if(va<vb)return asc?-1:1;
+    if(va>vb)return asc?1:-1;
+    return 0;
+  };
+  currentData.sort(cmp);
+}
+
+function renderTable(){
+  sortData();
+  const total=currentData.length;
+  const pages=Math.max(1,Math.ceil(total/pageSize));
+  page=Math.min(page,pages);
+  page=Math.max(page,1);
+  const start=(page-1)*pageSize;
+  const end=Math.min(total,start+pageSize);
+  const frag=document.createDocumentFragment();
+
+  for(let i=start;i<end;i++){
+    const item=currentData[i];
+    const tr=document.createElement('tr');
+
+    const c=document.createElement('td');c.textContent=item.case??'';
+    const s=document.createElement('td');s.textContent=item.status??'';s.className=item.status==='pass'?'status-pass':item.status==='fail'?'status-fail':'status-skip';
+    const t=document.createElement('td');t.textContent=formatTs(item.timestamp);
+    const d=document.createElement('td');const dur=Number(item.duration_ms??0);d.textContent=isFinite(dur)?String(dur):'';
+    const r=document.createElement('td');r.textContent=item.reason??'';
+
+    const v=document.createElement('td');
+    const link=(item.video??'').trim();
+    const screenshotsArr=Array.isArray(item.screenshot)?item.screenshot.filter(x=>typeof x==='string'&&x.trim()):[];
+    const firstShot=(screenshotsArr[0]??'').trim();
+    if(link){
+      const a=document.createElement('a');
+      a.href=link;
+      a.target='_blank';
+      a.rel='noopener noreferrer';
+      const isScreenshotFallback=firstShot && firstShot===link;
+      a.textContent=isScreenshotFallback?'截图查看':'录屏/视频';
+      v.appendChild(a);
+    }
+
+    const sc=document.createElement('td');
+    if(screenshotsArr.length>0){
+      screenshotsArr.forEach((url,idx)=>{
+        const u=String(url||'').trim();
+        if(!u)return;
+        if(idx>0){
+          sc.appendChild(document.createTextNode(' '));
+        }
+        const a=document.createElement('a');
+        a.href=u;
+        a.target='_blank';
+        a.rel='noopener noreferrer';
+        a.textContent=screenshotsArr.length>1?`查看(${idx+1})`:'查看';
+        sc.appendChild(a);
+      });
+    }
+
+    const it=document.createElement('td');const inTok=Number(item.in_tokens??0);it.textContent=isFinite(inTok)&&inTok>0?String(inTok):'';
+    const ot=document.createElement('td');const outTok=Number(item.out_tokens??0);ot.textContent=isFinite(outTok)&&outTok>0?String(outTok):'';
+
+    const av=document.createElement('td');av.className='cell-aosp';
+    const aosp=String(item.AospVersion??'').trim();
+    av.textContent=aosp;
+    if(aosp){av.title=aosp;}
+
+    const iid=document.createElement('td');iid.className='cell-image-id';
+    const imageId=String(item.ImageId??'').trim();
+    iid.textContent=imageId;
+    if(imageId){iid.title=imageId;}
+
+    const inm=document.createElement('td');inm.className='cell-image-name';
+    const imageName=String(item.ImageName??'').trim();
+    inm.textContent=imageName;
+    if(imageName){inm.title=imageName;}
+
+    const ct=document.createElement('td');ct.className='cell-content';
+    const rawContent=String(item.content??'');
+    const oneLine=rawContent.replace(/\s+/g,' ').trim();
+    const preview=oneLine.length>120?(oneLine.slice(0,120)+'…'):oneLine;
+    ct.textContent=preview;
+    ct.dataset.content=rawContent;
+    try{ct.dataset.struct=JSON.stringify(item.struct_output??null);}catch(_){ct.dataset.struct='';}
+    if(rawContent||item.struct_output){ct.title='点击查看/复制完整内容';}
+
+    tr.appendChild(c);
+    tr.appendChild(s);
+    tr.appendChild(t);
+    tr.appendChild(d);
+    tr.appendChild(r);
+    tr.appendChild(v);
+    tr.appendChild(sc);
+    tr.appendChild(it);
+    tr.appendChild(ot);
+    tr.appendChild(av);
+    tr.appendChild(iid);
+    tr.appendChild(inm);
+    tr.appendChild(ct);
+    frag.appendChild(tr);
+  }
+
+  tbody.innerHTML='';
+  tbody.appendChild(frag);
+  pageInfo.textContent='第 '+page+' / '+Math.max(1,Math.ceil(total/pageSize))+' 页，共 '+total+' 条';
+}
+
+function renderAll(data,source){
+  empty.style.display='none';
+  currentData=data.map(i=>({
+    case:String(i.case??''),
+    status:String(i.status??''),
+    timestamp:i.timestamp??'',
+    duration_ms:i.duration_ms??0,
+    reason:String(i.reason??''),
+    video:String(i.video??''),
+    screenshot:(Array.isArray(i.screenshot)
+      ? i.screenshot
+      : (typeof i.screenshot==='string'&&i.screenshot.trim())
+        ? [i.screenshot]
+        : (typeof i.video==='string'&&i.video.trim())
+          ? [i.video]
+          : []),
+    in_tokens:i.in_tokens??0,
+    out_tokens:i.out_tokens??0,
+    AospVersion:String((i.AospVersion??i.aosp_version??'')||''),
+    ImageId:String((i.ImageId??i.image_id??'')||''),
+    ImageName:String((i.ImageName??i.image_name??'')||''),
+    content:String(i.content??''),
+    struct_output:i.struct_output??null,
+  }));
+  meta.textContent=source?('来源: '+source+', 加载 '+currentData.length+' 条'):'';
+  renderSummary(stats(currentData));
+  renderTable();
+  drawStatusChart(currentData);
+  drawFailPie(currentData);
+  drawHistogram(currentData);
+}
+
+const contentModal=document.getElementById('contentModal');
+const contentModalTitle=document.getElementById('contentModalTitle');
+const contentModalText=document.getElementById('contentModalText');
+const contentModalHint=document.getElementById('contentModalHint');
+const contentModalCopy=document.getElementById('contentModalCopy');
+const contentModalClose=document.getElementById('contentModalClose');
+const contentModalTabContent=document.getElementById('contentModalTabContent');
+const contentModalTabStruct=document.getElementById('contentModalTabStruct');
+const contentModalPanelContent=document.getElementById('contentModalPanelContent');
+const contentModalPanelStruct=document.getElementById('contentModalPanelStruct');
+const contentModalJson=document.getElementById('contentModalJson');
+
+let modalActiveTab='content';
+let lastModalText='';
+let lastModalStruct=null;
+
+function setModalTab(tab){
+  modalActiveTab=tab;
+  const isContent=tab==='content';
+  contentModalTabContent.classList.toggle('active',isContent);
+  contentModalTabStruct.classList.toggle('active',!isContent);
+  contentModalPanelContent.classList.toggle('hidden',!isContent);
+  contentModalPanelStruct.classList.toggle('hidden',isContent);
+  if(isContent){
+    contentModalHint.textContent='提示：点击“复制”按钮，或在文本框内手动复制；Esc 关闭。';
+    contentModalText.focus();
+    contentModalText.select();
+  }else{
+    contentModalHint.textContent='提示：可折叠查看 struct_output；点击“复制”复制 JSON；Esc 关闭。';
+  }
+}
+
+function jsonType(v){
+  if(v===null)return 'null';
+  if(Array.isArray(v))return 'array';
+  return typeof v;
+}
+
+function renderJsonTree(rootValue){
+  contentModalJson.innerHTML='';
+
+  const type=jsonType(rootValue);
+  if(type==='undefined'){
+    contentModalJson.textContent='(无 struct_output)';
+    return;
+  }
+
+  const makeLeaf=(key,val)=>{
+    const div=document.createElement('div');
+    div.className='json-leaf';
+    const k=document.createElement('span');k.className='json-key';k.textContent=key;
+    const sep=document.createElement('span');sep.textContent=': ';
+    const v=document.createElement('span');
+    const t=jsonType(val);
+    if(t==='null'){v.className='json-null';v.textContent='null';}
+    else if(t==='number'){v.className='json-number';v.textContent=String(val);}
+    else if(t==='boolean'){v.className='json-bool';v.textContent=String(val);}
+    else if(t==='string'){v.className='json-string';v.textContent=JSON.stringify(val);}
+    else {v.className='json-value';v.textContent=String(val);}
+    div.appendChild(k);div.appendChild(sep);div.appendChild(v);
+    return div;
+  };
+
+  const build=(key,val,depth)=>{
+    const t=jsonType(val);
+    if(t!=='object'&&t!=='array'){
+      return makeLeaf(key,val);
+    }
+
+    const details=document.createElement('details');
+    details.className='json-node';
+    if(depth<=1)details.open=true;
+
+    const summary=document.createElement('summary');
+    summary.className='json-summary';
+    const k=document.createElement('span');k.className='json-key';k.textContent=key;
+    const meta=document.createElement('span');meta.className='json-type';
+    if(t==='array')meta.textContent=': ['+val.length+']';
+    else meta.textContent=': {'+Object.keys(val||{}).length+'}';
+    summary.appendChild(k);summary.appendChild(meta);
+    details.appendChild(summary);
+
+    const container=document.createElement('div');
+    const keys=t==='array'?val.map((_,i)=>String(i)):Object.keys(val||{});
+    for(const childKey of keys){
+      const childVal=t==='array'?val[Number(childKey)]:val[childKey];
+      container.appendChild(build(childKey,childVal,depth+1));
+    }
+    details.appendChild(container);
+    return details;
+  };
+
+  if(type==='array')contentModalJson.appendChild(build('(root)',rootValue,0));
+  else if(type==='object')contentModalJson.appendChild(build('(root)',rootValue,0));
+  else contentModalJson.appendChild(makeLeaf('(root)',rootValue));
+}
+
+function openContentModal(text, structValue, title){
+  lastModalText=String(text??'');
+  lastModalStruct=structValue;
+  contentModalTitle.textContent=title||'详情';
+  contentModalText.value=lastModalText;
+  renderJsonTree(lastModalStruct);
+  contentModal.classList.remove('hidden');
+  setModalTab('content');
+}
+
+function closeContentModal(){
+  contentModal.classList.add('hidden');
+}
+
+async function copyToClipboard(text){
+  const s=String(text??'');
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(s);
+      return true;
+    }
+  }catch(_){}
+
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=s;
+    ta.style.position='fixed';
+    ta.style.left='-9999px';
+    ta.style.top='0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(_){
+    return false;
+  }
+}
+
+contentModalTabContent.addEventListener('click',()=>setModalTab('content'));
+contentModalTabStruct.addEventListener('click',()=>setModalTab('struct'));
+
+contentModalClose.addEventListener('click',()=>closeContentModal());
+contentModal.addEventListener('click',(e)=>{if(e.target===contentModal)closeContentModal();});
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'&&!contentModal.classList.contains('hidden'))closeContentModal();});
+
+contentModalCopy.addEventListener('click',async()=>{
+  let toCopy='';
+  if(modalActiveTab==='content'){
+    toCopy=lastModalText;
+  }else{
+    try{toCopy=JSON.stringify(lastModalStruct,null,2);}catch(_){toCopy=String(lastModalStruct??'');}
+  }
+  const ok=await copyToClipboard(toCopy);
+  contentModalHint.textContent=ok?'已复制到剪贴板':'复制失败：请手动复制（选中后 Ctrl/Cmd+C）';
+});
+
+tbody.addEventListener('click',(e)=>{
+  const cell=e.target.closest('td.cell-content');
+  if(!cell)return;
+
+  const text=cell.dataset.content||'';
+  const structRaw=cell.dataset.struct||'';
+  let structVal=null;
+  if(structRaw){
+    try{structVal=JSON.parse(structRaw);}catch(_){structVal=structRaw;}
+  }
+
+  const caseName=cell.parentElement?.querySelector('td')?.textContent||'';
+  const title=caseName?('详情 · '+caseName):'详情';
+  openContentModal(text,structVal,title);
+});
+
+async function populateFromDirectory(fileList){
+  const files=[...fileList].filter(f=>f.name.toLowerCase().endsWith('.json'));
+  if(files.length===0){return;}
+  const tasks=files.map(f=>new Promise(resolve=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      let latest=f.lastModified;
+      try{
+        const data=normalize(JSON.parse(String(e.target.result)));
+        for(const it of data){
+          const ts=new Date(it.timestamp).getTime();
+          if(isFinite(ts)&&ts>latest)latest=ts;
+        }
+      }catch(_){
+        latest=f.lastModified;
+      }
+      resolve({file:f,latest});
+    };
+    r.onerror=()=>resolve({file:f,latest:f.lastModified});
+    r.readAsText(f);
+  }));
+  const results=await Promise.all(tasks);
+  results.sort((a,b)=>b.latest-a.latest);
+  dirFiles=results.map(r=>r.file);
+  fileSelect.innerHTML='';
+  results.forEach((r,idx)=>{
+    const opt=document.createElement('option');
+    opt.value=String(idx);
+    opt.dataset.source='local';
+    opt.textContent=r.file.name+' · '+new Date(r.latest).toISOString();
+    fileSelect.appendChild(opt);
+  });
+}
+
+input.addEventListener('change',()=>{
+  const files=input.files;
+  if(!files||files.length===0)return;
+  const readers=[...files].map(f=>new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      try{
+        resolve(normalize(JSON.parse(String(e.target.result))));
+      }catch(err){
+        reject(err);
+      }
+    };
+    r.onerror=reject;
+    r.readAsText(f);
+  }));
+  Promise.allSettled(readers).then(results=>{
+    const arr=[];let ok=0;
+    for(const r of results){
+      if(r.status==='fulfilled'){
+        arr.push(...r.value);
+        ok++;
+      }
+    }
+    if(arr.length===0){alert('未能加载有效 JSON');return;}
+    renderAll(arr,ok+' 个文件');
+  });
+});
+
+btn.addEventListener('click',async()=>{
+  try{
+    const resp=await fetch('results/sample.json');
+    const data=normalize(await resp.json());
+    renderAll(data,'示例文件');
+  }catch(_){
+    alert('未找到示例文件');
+  }
+});
+
+dir.addEventListener('change',()=>{
+  const files=dir.files;
+  if(!files||files.length===0)return;
+  populateFromDirectory(files);
+});
+
+loadSelected.addEventListener('click',async()=>{
+  const opts=[...fileSelect.selectedOptions];
+  if(opts.length===0)return;
+  try{
+    const readers=opts.map(o=>{
+      const f=dirFiles[Number(o.value)];
+      return new Promise((resolve,reject)=>{
+        const r=new FileReader();
+        r.onload=e=>{
+          try{
+            resolve(normalize(JSON.parse(String(e.target.result))));
+          }catch(err){
+            reject(err);
+          }
+        };
+        r.onerror=reject;
+        r.readAsText(f);
+      });
+    });
+    const results=await Promise.allSettled(readers);
+    const arr=[];let ok=0;
+    for(const r of results){
+      if(r.status==='fulfilled'){
+        arr.push(...r.value);
+        ok++;
+      }
+    }
+    if(arr.length===0){alert('未能加载有效 JSON');return;}
+    renderAll(arr,'目录选择 '+ok+' 个文件');
+  }catch(_){
+    alert('加载失败');
+  }
+});
+
+document.querySelectorAll('th.sortable').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const k=th.getAttribute('data-key');
+    if(!k)return;
+    if(sortKey===k){sortAsc=!sortAsc;}
+    else{sortKey=k;sortAsc=true;}
+    renderTable();
+  });
+});
+
+prev.addEventListener('click',()=>{
+  if(page>1){page--;renderTable();}
+});
+next.addEventListener('click',()=>{
+  page++;renderTable();
+});
+</script>
+</body>
+</html>

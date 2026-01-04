@@ -1,0 +1,29 @@
+[
+  {
+    "case": "cases/template.md",
+    "status": "pass",
+    "timestamp": "2025-12-30 15:15:17",
+    "duration_ms": 161950,
+    "reason": "",
+    "screenshot": [], 
+    "in_tokens": 153253,
+    "out_tokens": 3968,
+    "original_dimensions": [
+      720,
+      1520
+    ],
+    "screenshot_dimensions": [
+      720,
+      1520
+    ],
+    "AospVersion": "13",
+    "ImageName": "paas平台公共镜像AOSP13(2025-11-10)",
+    "ImageId": "img-186163202",
+    "pod_id": "",
+    "run_id": "",
+    "content": "",
+    "task_status": "completed",
+    "task_status_code": 3
+  }
+]
+
