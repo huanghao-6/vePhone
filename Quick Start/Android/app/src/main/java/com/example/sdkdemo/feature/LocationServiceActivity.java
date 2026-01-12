@@ -1,5 +1,7 @@
 package com.example.sdkdemo.feature;
 
+import android.Manifest;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -13,6 +15,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.blankj.utilcode.util.PermissionUtils;
 import com.example.sdkdemo.R;
 import com.example.sdkdemo.util.ScreenUtil;
 import com.example.sdkdemo.base.BasePlayActivity;
@@ -45,6 +48,10 @@ public class LocationServiceActivity extends BasePlayActivity {
         setContentView(R.layout.activity_location);
         initView();
         initPlayConfigAndStartPlay();
+        // 若使用场景涉及到定位功能，可以提前申请好定位权限，也可以在云端触发定位请求时再进行定位授权
+        if (!PermissionUtils.isGranted(Manifest.permission_group.LOCATION)) {
+            PermissionUtils.permission(Manifest.permission_group.LOCATION).request();
+        }
     }
 
     private void initView() {
@@ -60,10 +67,10 @@ public class LocationServiceActivity extends BasePlayActivity {
             mLlButtons.setVisibility(isChecked ? View.VISIBLE : View.GONE);
         });
 
-        /**
+        /*
          * enableLocationService(boolean enable) -- 定位服务开关
          */
-        mSwEnableLocationService.setOnCheckedChangeListener((compoundButton, enable) -> {
+        mSwEnableLocationService.setOnCheckedChangeListener((v, enable) -> {
             if (mLocationService != null) {
                 mLocationService.enableLocationService(enable);
             }
@@ -72,7 +79,7 @@ public class LocationServiceActivity extends BasePlayActivity {
             }
         });
 
-        /**
+        /*
          * setLocationServiceMode(int mode) -- 设置定位服务模式
          *
          * @param mode 定位服务模式
@@ -92,7 +99,7 @@ public class LocationServiceActivity extends BasePlayActivity {
             }
         });
 
-        /**
+        /*
          * setRemoteLocationMock(LocationInfo location)
          * 更新云端实例位置信息
          *
@@ -109,7 +116,7 @@ public class LocationServiceActivity extends BasePlayActivity {
             }
         });
 
-        /**
+        /*
          * isLocationServiceEnabled() -- 是否开启定位服务
          * getLocationServiceMode() -- 获取定位服务模式
          */
@@ -185,11 +192,11 @@ public class LocationServiceActivity extends BasePlayActivity {
                 /**
                  * 收到远端实例位置请求的回调
                  *
-                 * @param requestOptions 位置请求选项
+                 * @param options 位置请求选项
                  */
                 @Override
-                public void onReceivedRemoteLocationRequest(LocationService.RequestOptions requestOptions) {
-                    Log.i(TAG, "[onReceivedRemoteLocationRequest] requestOptions: " + requestOptions);
+                public void onReceivedRemoteLocationRequest(LocationService.RequestOptions options) {
+                    Log.i(TAG, "[onReceivedRemoteLocationRequest] options: " + options);
                 }
 
                 /**
@@ -203,11 +210,11 @@ public class LocationServiceActivity extends BasePlayActivity {
                 /**
                  * 在自动定位模式下，向远端实例发送本地设备位置信息后的回调
                  *
-                 * @param locationInfo 发送到云端实例的本地设备位置信息
+                 * @param info 发送到云端实例的本地设备位置信息
                  */
                 @Override
-                public void onSentLocalLocation(LocationService.LocationInfo locationInfo) {
-                    Log.i(TAG, "[onSentLocalLocation] locationInfo: " + locationInfo);
+                public void onSentLocalLocation(LocationService.LocationInfo info) {
+                    Log.i(TAG, "[onSentLocalLocation] info: " + info);
                 }
 
                 /**
@@ -215,11 +222,11 @@ public class LocationServiceActivity extends BasePlayActivity {
                  * 当手动调用{@link LocationService#setRemoteLocationMock(LocationService.LocationInfo)}时触发该回调；
                  * 当设置为自动获取或者没有调用{@link LocationService#setRemoteLocationMock(LocationService.LocationInfo)}的时候不会触发。
                  *
-                 * @param locationInfo 远端实例更新的位置信息
+                 * @param info 远端实例更新的位置信息
                  */
                 @Override
-                public void onRemoteLocationUpdated(LocationService.LocationInfo locationInfo) {
-                    Log.i(TAG, "[onRemoteLocationUpdated] locationInfo: " + locationInfo);
+                public void onRemoteLocationUpdated(LocationService.LocationInfo info) {
+                    Log.i(TAG, "[onRemoteLocationUpdated] info: " + info);
                 }
             });
         }
@@ -228,4 +235,29 @@ public class LocationServiceActivity extends BasePlayActivity {
         }
     }
 
+    @Override
+    public void onWarning(int code, String msg) {
+        super.onWarning(code, msg);
+        switch (code) {
+            case 30007:  //WARNING_SDK_LACK_OF_LOCATION_PERMISSION
+                showTipDialog("云端发起定位请求，但客户端无定位权限，是否申请系统定位权限？",
+                        (dialog, which) -> {
+                            // 请求定位权限，SDK内部仅检查权限不会主动申请任何运行时权限
+                            PermissionUtils.permission(Manifest.permission_group.LOCATION).request();
+                        });
+                break;
+            case 30013:  //WARNING_SDK_LOCATION_DISABLED
+                LocationService service = mLocationService;
+                if (service != null) {
+                    showTipDialog("收到云端请求定位，但客户端未开启定位上报功能，是否开启定位上报功能？",
+                            (dialog, which) -> {
+                                // 根据业务需求决定是否开启定位权限，若不需要则忽略此告警码；若需要则调用下面接口动态开启定位功能
+                                service.enableLocationService(true);
+                            });
+                }
+                break;
+            default:
+                break;
+        }
+    }
 }
