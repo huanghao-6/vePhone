@@ -29,8 +29,9 @@ public class SdkUtil {
      * ak/sk/token用于用户鉴权，需要从火山官网上获取，具体步骤详见README[鉴权相关]。
      * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
      *
-     * ak/sk/token/podId的值从assets目录下的sts.json文件中读取，该目录及文件需要自行创建。
-     * sts.json的格式形如
+     * ak/sk/token/podId的值从assets目录下的sts.json文件中读取，该目录及文件需要自行创建。<p/>
+     * sts.json的格式形如下：
+     * <pre>
      * {
      *     "podId": "your_pod_id",
      *     "productId": "your_product_id",
@@ -38,6 +39,7 @@ public class SdkUtil {
      *     "sk": "your_sk",
      *     "token": "your_token"
      * }
+     * </pre>
      */
     public static @NonNull PlayAuth getPlayAuth(Context context) {
         PlayAuth auth = new PlayAuth();
@@ -69,12 +71,15 @@ public class SdkUtil {
     /**
      * 生成客户端用户id
      * 推荐采用：`{OS}_{DEVICE_ID}`的格式用于区分不同系统和设备，防止出现预期外的userId重复
+     * 补充：当不同端的userId重复时，会发生冲突，表现为后进房的客户端会把先进房的客户端踢出房间
      */
     public @NonNull static String getClientUid() {
         return "android_github_" + VePhoneEngine.getInstance().getDeviceId();
     }
 
-
+    /**
+     * 业务会话id，非必填项
+     */
     public @NonNull static String getRoundId() {
         return VePhoneEngine.getInstance().getDeviceId() + SystemClock.uptimeMillis();
     }
