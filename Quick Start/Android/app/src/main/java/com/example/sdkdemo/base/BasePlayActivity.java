@@ -198,7 +198,6 @@ public class BasePlayActivity extends AppCompatActivity implements IPlayerListen
      */
     @Override
     public void onLocalStreamStats(LocalStreamStats stats) {
-        Log.d(TAG, "[onLocalStreamStats] stats: " + stats);
     }
 
     /**
@@ -311,6 +310,8 @@ public class BasePlayActivity extends AppCompatActivity implements IPlayerListen
         if (loadingUI == null) {
             loadingUI = findViewById(R.id.progress_bar);
         }
-        loadingUI.setVisibility(visible ? View.VISIBLE : View.GONE);
+        if (loadingUI != null) {
+            loadingUI.setVisibility(visible ? View.VISIBLE : View.GONE);
+        }
     }
 }

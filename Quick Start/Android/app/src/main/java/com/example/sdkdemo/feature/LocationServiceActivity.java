@@ -1,7 +1,5 @@
 package com.example.sdkdemo.feature;
 
-import android.Manifest;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -15,10 +13,11 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.blankj.utilcode.constant.PermissionConstants;
 import com.blankj.utilcode.util.PermissionUtils;
 import com.example.sdkdemo.R;
-import com.example.sdkdemo.util.ScreenUtil;
 import com.example.sdkdemo.base.BasePlayActivity;
+import com.example.sdkdemo.util.ScreenUtil;
 import com.example.sdkdemo.util.SdkUtil;
 import com.volcengine.cloudphone.apiservice.LocationService;
 import com.volcengine.phone.PhonePlayConfig;
@@ -49,9 +48,7 @@ public class LocationServiceActivity extends BasePlayActivity {
         initView();
         initPlayConfigAndStartPlay();
         // 若使用场景涉及到定位功能，可以提前申请好定位权限，也可以在云端触发定位请求时再进行定位授权
-        if (!PermissionUtils.isGranted(Manifest.permission_group.LOCATION)) {
-            PermissionUtils.permission(Manifest.permission_group.LOCATION).request();
-        }
+        PermissionUtils.permission(PermissionConstants.LOCATION).request();
     }
 
     private void initView() {
@@ -243,7 +240,7 @@ public class LocationServiceActivity extends BasePlayActivity {
                 showTipDialog("云端发起定位请求，但客户端无定位权限，是否申请系统定位权限？",
                         (dialog, which) -> {
                             // 请求定位权限，SDK内部仅检查权限不会主动申请任何运行时权限
-                            PermissionUtils.permission(Manifest.permission_group.LOCATION).request();
+                            PermissionUtils.permission(PermissionConstants.LOCATION).request();
                         });
                 break;
             case 30013:  //WARNING_SDK_LOCATION_DISABLED

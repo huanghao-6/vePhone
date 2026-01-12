@@ -1,6 +1,5 @@
 package com.example.sdkdemo.feature;
 
-import android.Manifest;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -14,6 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.LinearLayoutCompat;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.blankj.utilcode.constant.PermissionConstants;
 import com.blankj.utilcode.util.PermissionUtils;
 import com.example.sdkdemo.R;
 import com.example.sdkdemo.base.BasePlayActivity;
@@ -233,11 +233,11 @@ public class FileExchangeActivity extends BasePlayActivity {
     }
 
     private void requestPermissionAndStartPushFile() {
-        PermissionUtils.permission(Manifest.permission.READ_EXTERNAL_STORAGE)
+        PermissionUtils.permission(PermissionConstants.STORAGE)
                 .callback(new PermissionUtils.SimpleCallback() {
                     @Override
                     public void onGranted() {
-                        /**
+                        /*
                          * 推送本地文件到云端实例的指定目录
                          * startPushFile(File file, File target, IPushFileListener listener)
                          *

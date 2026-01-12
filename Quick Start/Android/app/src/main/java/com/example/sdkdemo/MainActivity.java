@@ -4,6 +4,7 @@ import android.os.Bundle;
 
 import com.example.sdkdemo.base.BaseListActivity;
 import com.example.sdkdemo.feature.AppGroundSwitchManagerActivity;
+import com.example.sdkdemo.feature.AppSimulationActivity;
 import com.example.sdkdemo.feature.AudioServiceActivity;
 import com.example.sdkdemo.feature.CameraManagerActivity;
 import com.example.sdkdemo.feature.ClarityServiceActivity;
@@ -35,6 +36,7 @@ public class MainActivity extends BaseListActivity {
 
     @Override
     protected void setupAdapter(ItemsHolder holder) {
+        holder.addItem(R.string.app_simulation, R.string.app_simulation_best_practice, AppSimulationActivity.class);
         holder.addItem(R.string.audio, R.string.audio_desc, AudioServiceActivity.class);
         holder.addItem(R.string.camera, R.string.camera_desc, CameraManagerActivity.class);
         holder.addItem(R.string.clarity, R.string.clarity_desc, ClarityServiceActivity.class);

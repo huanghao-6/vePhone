@@ -38,6 +38,10 @@ android {
     lintOptions {
         disable "[ByDesign9.3]LogSensitiveInfo"
     }
+
+    buildFeatures {
+        viewBinding true
+    }
 }
 
 dependencies {
